@@ -1,0 +1,54 @@
+name: testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ${{ matrix.so }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        so: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # O juiz enumera VERTICES. O teorema que faz o simplex existir e que o
+      # maximo de uma funcao linear sobre um poliedro esta sempre num vertice, e
+      # cada vertice e a solucao de um sistema quadrado obtido escolhendo quais
+      # restricoes valem com igualdade. Entao o juiz escolhe n das m+n, resolve
+      # por eliminacao de Gauss exata, confere viabilidade e fica com o melhor.
+      #
+      # Ele nao usa pivo, nao usa base, nao usa razao minima, e nao pode errar
+      # pelos mesmos motivos que o simplex erraria. Foi ele que pegou dois
+      # defeitos meus: um metodo de duas fases que declarava inviaveis programas
+      # viaveis, e uma deteccao de ilimitado que so olhava direcoes canonicas.
+      #
+      # Toda a aritmetica e exata, em fracoes de inteiro grande. Nao e
+      # preciosismo: o algoritmo decide por comparacao de SINAL, e em ponto
+      # flutuante um zero que virou 1e-17 pivota numa linha que nao podia. E o
+      # assunto central, a ciclagem, depende de a razao minima empatar em zero
+      # EXATAMENTE, o que em ponto flutuante nunca acontece.
+      - name: testes
+        run: dotnet test testes/Simplex.Testes/Simplex.Testes.csproj -c Release --nologo -v q
+
+      # As medidas rodam para REGISTRAR numeros.
+      - name: o cubo de Klee e Minty, com as tres regras
+        run: dotnet run --project ferramentas/Medidor/Medidor.csproj -c Release -- cubo
+
+      - name: a ciclagem no problema de Beale, pivo a pivo
+        run: dotnet run --project ferramentas/Medidor/Medidor.csproj -c Release -- ciclo
+
+      - name: as tres regras em programas sorteados
+        run: dotnet run --project ferramentas/Medidor/Medidor.csproj -c Release -- regras
+
+      - name: o preco de enumerar vertices em vez de caminhar
+        run: dotnet run --project ferramentas/Medidor/Medidor.csproj -c Release -- juiz
